@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "id": "SimPN",
+    "title": "SimPN",
+    "panel": "panels/SimPN/SimPNPanel",
+    "DEBUG_ONLY": false
+  }
+]
