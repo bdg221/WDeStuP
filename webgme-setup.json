@@ -6,9 +6,9 @@
       }
     },
     "plugins": {
-      "Python": {
-        "src": "src/plugins/Python",
-        "test": "test/plugins/Python"
+      "PetriNetClassifier": {
+        "src": "src/plugins/PetriNetClassifier",
+        "test": "test/plugins/PetriNetClassifier"
       }
     }
   },
