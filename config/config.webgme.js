@@ -10,7 +10,7 @@ var config = require('webgme/config/config.default'),
 config.plugin.basePaths.push(__dirname + '/../src/plugins');
 config.seedProjects.basePaths.push(__dirname + '/../src/seeds/petriNet');
 
-
+config.plugin.allowServerExecution = true;
 
 
 
