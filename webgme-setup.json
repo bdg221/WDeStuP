@@ -4,9 +4,16 @@
       "petriNet": {
         "src": "src/seeds/petriNet"
       }
+    },
+    "plugins": {
+      "Python": {
+        "src": "src/plugins/Python",
+        "test": "test/plugins/Python"
+      }
     }
   },
   "dependencies": {
-    "seeds": {}
+    "seeds": {},
+    "plugins": {}
   }
 }
