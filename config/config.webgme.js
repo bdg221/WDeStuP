@@ -10,16 +10,19 @@ var config = require('webgme/config/config.default'),
 config.plugin.basePaths.push(__dirname + '/../src/plugins');
 config.seedProjects.basePaths.push(__dirname + '/../src/seeds/petriNet');
 
-config.plugin.allowServerExecution = true;
 
+
+config.visualization.panelPaths.push(__dirname + '/../src/visualizers/panels');
 
 
 
 
 // Visualizer descriptors
-
+config.visualization.visualizerDescriptors.push(__dirname + '/../src/visualizers/Visualizers.json');
 // Add requirejs paths
 config.requirejsPaths = {
+  'panels': './src/visualizers/panels',
+  'widgets': './src/visualizers/widgets',
   'wdestup': './src/common'
 };
 

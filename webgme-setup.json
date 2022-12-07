@@ -10,10 +10,20 @@
         "src": "src/plugins/PetriNetClassifier",
         "test": "test/plugins/PetriNetClassifier"
       }
+    },
+    "visualizers": {
+      "SimPN": {
+        "src": "panels/SimPN/SimPNPanel",
+        "title": "SimPN",
+        "panel": "src/visualizers/panels/SimPN",
+        "secondary": false,
+        "widget": "src/visualizers/widgets/SimPN"
+      }
     }
   },
   "dependencies": {
     "seeds": {},
-    "plugins": {}
+    "plugins": {},
+    "visualizers": {}
   }
 }
