@@ -25,7 +25,8 @@ define([
         this._widget = options.widget;
 
         this._currentNodeId = null;
-        this._currentNodeParentId = undefined;
+        
+        this._networkRootLoaded = false;
 
         this._initWidgetEventHandlers();
 
@@ -44,33 +45,20 @@ define([
     // defines the parts of the project that the visualizer is interested in
     // (this allows the browser to then only load those relevant parts).
     SimPNControl.prototype.selectedObjectChanged = function (nodeId) {
-        var desc = this._getObjectDescriptor(nodeId),
-            self = this;
-
-        self._logger.debug('activeObject nodeId \'' + nodeId + '\'');
+       var self = this;
 
         // Remove current territory patterns
         if (self._currentNodeId) {
             self._client.removeUI(self._territoryId);
+            self._networkRootLoaded = false;
         }
 
         self._currentNodeId = nodeId;
-        self._currentNodeParentId = undefined;
 
         if (typeof self._currentNodeId === 'string') {
             // Put new node's info into territory rules
             self._selfPatterns = {};
-            self._selfPatterns[nodeId] = {children: 0};  // Territory "rule"
-
-            self._widget.setTitle(desc.name.toUpperCase());
-
-            // if (typeof desc.parentId === 'string') {
-            //     self.$btnModelHierarchyUp.show();
-            // } else {
-            //     self.$btnModelHierarchyUp.hide();
-            // }
-
-            self._currentNodeParentId = desc.parentId;
+            self._selfPatterns[nodeId] = {children: 1};  // Territory "rule"
 
             self._territoryId = self._client.addUI(self, function (events) {
                 self._eventCallback(events);
@@ -78,70 +66,33 @@ define([
 
             // Update the territory
             self._client.updateTerritory(self._territoryId, self._selfPatterns);
-
-            self._selfPatterns[nodeId] = {children: 1};
-            self._client.updateTerritory(self._territoryId, self._selfPatterns);
         }
     };
 
-    // This next function retrieves the relevant node information for the widget
-    SimPNControl.prototype._getObjectDescriptor = function (nodeId) {
-        var node = this._client.getNode(nodeId),
-            objDescriptor;
-        if (node) {
-            objDescriptor = {
-                id: node.getId(),
-                name: node.getAttribute(nodePropertyNames.Attributes.name),
-                childrenIds: node.getChildrenIds(),
-                parentId: node.getParentId(),
-                isConnection: GMEConcepts.isConnection(nodeId)
-            };
-        }
-
-        return objDescriptor;
-    };
 
     /* * * * * * * * Node Event Handling * * * * * * * */
     SimPNControl.prototype._eventCallback = function (events) {
-        var i = events ? events.length : 0,
-            event;
+        const self = this;
+        console.log(events);
+        events.forEach(event => {
+            if (event.eid && 
+                event.eid === self._currentNodeId ) {
+                    if (event.etype == 'load' || event.etype == 'update') {
+                        self._networkRootLoaded = true;
+                    } else {
+                        self.clearPN();
+                        return;
+                    }
+                }
 
-        this._logger.debug('_eventCallback \'' + i + '\' items');
+        });
 
-        while (i--) {
-            event = events[i];
-            switch (event.etype) {
-
-            case CONSTANTS.TERRITORY_EVENT_LOAD:
-                this._onLoad(event.eid);
-                break;
-            case CONSTANTS.TERRITORY_EVENT_UPDATE:
-                this._onUpdate(event.eid);
-                break;
-            case CONSTANTS.TERRITORY_EVENT_UNLOAD:
-                this._onUnload(event.eid);
-                break;
-            default:
-                break;
-            }
+        if (events.length && events[0].etype === 'complete' && self._networkRootLoaded) {
+            // complete means we got all requested data and we do not have to wait for additional load cycles
+            self._initPN();
         }
-
-        this._logger.debug('_eventCallback \'' + events.length + '\' items - DONE');
     };
 
-    SimPNControl.prototype._onLoad = function (gmeId) {
-        var description = this._getObjectDescriptor(gmeId);
-        this._widget.addNode(description);
-    };
-
-    SimPNControl.prototype._onUpdate = function (gmeId) {
-        var description = this._getObjectDescriptor(gmeId);
-        this._widget.updateNode(description);
-    };
-
-    SimPNControl.prototype._onUnload = function (gmeId) {
-        this._widget.removeNode(gmeId);
-    };
 
     SimPNControl.prototype._stateActiveObjectChanged = function (model, activeObjectId) {
         if (this._currentNodeId === activeObjectId) {
@@ -150,6 +101,51 @@ define([
             this.selectedObjectChanged(activeObjectId);
         }
     };
+
+    /* * * * * * * * Machine manipulation functions * * * * * * * */
+    SimPNControl.prototype._initPN = function () {
+        const self = this;
+        //just for the ease of use, lets create a META dictionary
+        const rawMETA = self._client.getAllMetaNodes();
+        const META = {};
+        rawMETA.forEach(node => {
+            META[node.getAttribute('name')] = node.getId(); //we just need the id...
+        });
+        //now we collect all data we need for network visualization
+        //we need our states (names, position, type), need the set of next state (with event names)
+        const pnNode = self._client.getNode(self._currentNodeId);
+        const elementIds = pnNode.getChildrenIds();
+        const pn = {init: null, states:{}};
+        elementIds.forEach(elementId => {
+            const node = self._client.getNode(elementId);
+            // the simple way of checking type
+            if (node.isTypeOf(META['Transition'])) {
+                //right now we only interested in states...
+                const transition = {name: node.getAttribute('name'), position: node.getRegistry('position'), inPlaces: {}, outPlaces: {}};
+
+                // this is in no way optimal, but shows clearly what we are looking for when we collect the data
+                elementIds.forEach(nextId => {
+                    const nextNode = self._client.getNode(nextId);
+                    if(nextNode.isTypeOf(META['OutplaceArc']) && nextNode.getPointerId('src') === elementId) {
+                        transition.outPlaces.append(nextNode.getPointerId('dst'));
+                    }
+                    if(nextNode.isTypeOf(META['InplaceArc']) && nextNode.getPointerId('dst') == elementId) {
+                        transition.inPlaces.append(nextNode.getPointerId('src'));
+                    }
+                });
+                pn.transitions[elementId] = transition;
+            }
+        });
+
+        self._widget.initPetri(pn);
+    };
+
+    SimPNControl.prototype.clearPN = function () {
+        const self = this;
+        self._networkRootLoaded = false;
+        self._widget.destroyPetri();
+    };
+
 
     /* * * * * * * * Visualizer life cycle callbacks * * * * * * * */
     SimPNControl.prototype.destroy = function () {
@@ -182,6 +178,17 @@ define([
 
     /* * * * * * * * * * Updating the toolbar * * * * * * * * * */
     SimPNControl.prototype._displayToolbarItems = function () {
+
+        if (this._toolbarInitialized === true) {
+            for (var i = this._toolbarItems.length; i--;) {
+                this._toolbarItems[i].show();
+            }
+        } else {
+            this._initializeToolbar();
+        }
+    };
+
+    SimPNControl.prototype._hideToolbarItems = function () {
 
         if (this._toolbarInitialized === true) {
             for (var i = this._toolbarItems.length; i--;) {
@@ -238,28 +245,15 @@ define([
 
         this._toolbarItems.push(this.$checkClassification);
 
-        /************** Go to hierarchical parent button ****************/
-        this.$btnResetMachine = toolBar.addButton({
+       
+        this.$btnResetPetri = toolBar.addButton({
             title: 'Reset simulator',
             icon: 'glyphicon glyphicon-repeat',
             clickFn: function (/*data*/) {
-                self._widget.resetMachine();
+                self._widget.resetPetri();
             }
         });
-        this._toolbarItems.push(this.$btnResetMachine);
-
-        /************** Checkbox example *******************/
-
-        this.$btnSingleEvent = toolBar.addButton({
-            title: 'Fire event',
-            icon: 'glyphicon glyphicon-play',
-            checkChangedFn: function (data, checked) {
-                self._widget.fireEvent(self._fireableEvents[0]);
-            }
-        });
-
-        this._toolbarItems.push(this.$btnSingleEvent);
-
+        this._toolbarItems.push(this.$btnResetPetri);
 
         this._toolbarInitialized = true;
     };
