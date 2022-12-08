@@ -167,9 +167,9 @@ define([
         self._widget.destroyPetri();
     };
 
-    SimSMControl.prototype.setFireableEvents = function (events) {
-        this._fireableEvents = events;
-    };
+     SimPNControl.prototype.setFireableEvents = function (events) {
+         this._fireableEvents = events;
+     };
 
     /* * * * * * * * Visualizer life cycle callbacks * * * * * * * */
     SimPNControl.prototype.destroy = function () {

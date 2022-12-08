@@ -75,9 +75,11 @@
             let tran = null;
             let count = 0;
             let color = 'green';
+            let cursor = 'default';
             pn.transitions[transitionId].inPlaces.forEach(inPlaceId => {
                 if(pn.places[inPlaceId].capacity == 0)
                     color = 'black';
+                    cursor = 'pointer';
                 count++;
             });
             if(count == 0) color = 'black';
@@ -89,15 +91,16 @@
                         text: pn.transitions[transitionId].name,
                         //event: 'element:label:pointerdown',
                         fontWeight: 'bold',
-                        //cursor: 'text',
-                        //style: {
-                        //    userSelect: 'text'
-                        //}
+                        cursor: cursor,
+                        style: {
+                            stroke: 'white',
+                            fill: 'white'
+                        }
                     },
                     body: {
                         fill: color,
                         strokeWidth: 3,
-                        cursor: 'pointer'
+                        cursor: cursor
                     }
                 }
             });
@@ -125,7 +128,7 @@
                     },
                     body: {
                         strokeWidth: 3,
-                        cursor: 'pointer',
+                        //cursor: 'pointer',
                         fillOpacity: 0
                     }
                 }
@@ -230,17 +233,22 @@
 
     SimPNWidget.prototype._decoratePetri = function() {
         const pn = this._webgmePN;
-
+        let count = 0;
         Object.keys(pn.transitions).forEach(tranId => {
             count = 0;
             pn.transitions[tranId].inPlaces.forEach(inPlaceId => {
                 if(pn.places[inPlaceId].capacity == 0) count++;
             });
-            if (count != 0) {
+            if (count == 0) {
                 pn.transitions[tranId].joint.attr('body/fill', 'green');
+                pn.transitions[tranId].joint.attr('body/cursor', 'pointer');
+                pn.transitions[tranId].joint.attr('label/cursor', 'pointer');
                 pn.setFireableEvents(Object.keys(pn.transitions[tranId]));
-            } else
+            } else{
                 pn.transitions[tranId].joint.attr('body/fill', 'black');
+                pn.transitions[tranId].joint.attr('body/cursor', 'default');
+                pn.transitions[tranId].joint.attr('label/cursor', 'default');
+            }
         });
 
     };
