@@ -12,6 +12,7 @@
     var WIDGET_CLASS = 'sim-s-m';
 
     function SimPNWidget(logger, container) {
+        
         this._logger = logger.fork('Widget');
 
         this._el = container;
@@ -46,7 +47,7 @@
             // console.log(currentElement);
             if (self._webgmePN) {
                 // console.log(self._webgmePN.id2state[currentElement.id]);
-                self._setCurrentState(self._webgmePN.id2state[currentElement.id]);
+                self._setCurrentState(self._webgmePN.id2transitions[currentElement.id]);
             }
         });
 
@@ -66,66 +67,85 @@
         self._webgmePN.current = self._webgmePN.init;
         self._jointPN.clear();
         const pn = self._webgmePN;
-        pn.id2state = {}; // this dictionary will connect the on-screen id to the state id
-        // first add the states
-        Object.keys(pn.states).forEach(stateId => {
-            let vertex = null;
-            if (pn.init === stateId) {
-                vertex = new joint.shapes.standard.Circle({
-                    position: pn.states[stateId].position,
-                    size: { width: 20, height: 20 },
-                    attrs: {
-                        body: {
-                            fill: '#333333',
-                            cursor: 'pointer'
-                        }
+        pn.id2transitions = {}; // this dictionary will connect the on-screen id to the transition id
+        pn.id2places = {}; // this dictionary will connect the on-screen id to the place id
+
+        // first add the transitions
+        Object.keys(pn.transitions).forEach(transitionId => {
+            let tran = null;
+            let count = 0;
+            let color = 'green';
+            pn.transitions[transitionId].inPlaces.forEach(inPlaceId => {
+                if(pn.places[inPlaceId].capacity == 0)
+                    color = 'black';
+                count++;
+            });
+            if(count == 0) color = 'black';
+            tran = new joint.shapes.standard.Rectangle({
+                position: pn.transitions[transitionId].position,
+                size: { width: 30, height: 120 },
+                attrs: {
+                    label : {
+                        text: pn.transitions[transitionId].name,
+                        //event: 'element:label:pointerdown',
+                        fontWeight: 'bold',
+                        //cursor: 'text',
+                        //style: {
+                        //    userSelect: 'text'
+                        //}
+                    },
+                    body: {
+                        fill: color,
+                        strokeWidth: 3,
+                        cursor: 'pointer'
                     }
-                });
-            } else if (pn.states[stateId].isEnd) {
-                vertex = new joint.shapes.standard.Circle({
-                    position: pn.states[stateId].position,
-                    size: { width: 30, height: 30 },
-                    attrs: {
-                        body: {
-                            fill: '#999999',
-                            cursor: 'pointer'
-                        }
-                    }
-                });
-            } else {
-                vertex = new joint.shapes.standard.Circle({
-                    position: pn.states[stateId].position,
-                    size: { width: 60, height: 60 },
-                    attrs: {
-                        label : {
-                            text: pn.states[stateId].name,
-                            //event: 'element:label:pointerdown',
-                            fontWeight: 'bold',
-                            //cursor: 'text',
-                            //style: {
-                            //    userSelect: 'text'
-                            //}
-                        },
-                        body: {
-                            strokeWidth: 3,
-                            cursor: 'pointer'
-                        }
-                    }
-                });
-            }
-            vertex.addTo(self._jointPN);
-            pn.states[stateId].joint = vertex;
-            pn.id2state[vertex.id] = stateId;
+                }
+            });
+            
+            tran.addTo(self._jointPN);
+            pn.transitions[transitionId].joint = tran;
+            pn.id2transitions[tran.id] = transitionId;
         });
 
-        // then create the links
-        Object.keys(pn.states).forEach(stateId => {
-            const state = pn.states[stateId];
-            Object.keys(state.next).forEach(event => {
-                state.jointNext = state.jointNext || {};
+        Object.keys(pn.places).forEach(placeId => {
+            let place = null;
+            let count = pn.places[placeId].capacity;
+            place = new joint.shapes.standard.Circle({
+                position: pn.places[placeId].position,
+                size: { width: 100, height: 100 },
+                attrs: {
+                    label : {
+                        text: pn.places[placeId].name,
+                        //event: 'element:label:pointerdown',
+                        fontWeight: 'bold',
+                        //cursor: 'text',
+                        //style: {
+                        //    userSelect: 'text'
+                        //}
+                    },
+                    body: {
+                        strokeWidth: 3,
+                        cursor: 'pointer',
+                        fillOpacity: 0
+                    }
+                }
+            });
+        
+            place.addTo(self._jointPN);
+            pn.places[placeId].joint = place;
+            pn.id2places[place.id] = placeId;
+        });
+
+        
+
+        // then create the arcs
+        Object.keys(pn.transitions).forEach(tranId => {
+            const tran = pn.transitions[tranId];
+            Object.keys(tran.inPlaces).forEach(inPlace => {
+                tran.jointNext = tran.jointNext || {};
                 const link = new joint.shapes.standard.Link({
-                    source: {id: state.joint.id},
-                    target: {id: pn.states[state.next[event]].joint.id},
+                    source: {id: pn.places[tran.inPlaces[inPlace]].joint.id},
+                    target: {id: tran.joint.id},
                     attrs: {
                         line: {
                             strokeWidth: 2
@@ -144,16 +164,41 @@
                             }
                         },
                         attrs: {
-                            text: {
-                                text: event,
-                                fontWeight: 'bold'
-                            }
                         }
                     }]
                 });
                 link.addTo(self._jointPN);
-                state.jointNext[event] = link;
-            })
+                tran.jointNext[tran.inPlaces[inPlace]] = link;
+            });
+            Object.keys(tran.outPlaces).forEach(outPlace => {
+                tran.jointNext = tran.jointNext || {};
+                const link = new joint.shapes.standard.Link({
+                    target: {id: pn.places[tran.outPlaces[outPlace]].joint.id},
+                    source: {id: tran.joint.id},
+                    attrs: {
+                        line: {
+                            strokeWidth: 2
+                        },
+                        wrapper: {
+                            cursor: 'default'
+                        }
+                    },
+                    labels: [{
+                        position: {
+                            distance: 0.5,
+                            offset: 0,
+                            args: {
+                                keepGradient: true,
+                                ensureLegibility: true
+                            }
+                        },
+                        attrs: {
+                        }
+                    }]
+                });
+                link.addTo(self._jointPN);
+                tran.jointNext[tran.outPlaces[outPlace]] = link;
+            });
         });
 
         //now refresh the visualization
@@ -185,11 +230,19 @@
 
     SimPNWidget.prototype._decoratePetri = function() {
         const pn = this._webgmePN;
-        Object.keys(pn.states).forEach(stateId => {
-            pn.states[stateId].joint.attr('body/stroke', '#333333');
+
+        Object.keys(pn.transitions).forEach(tranId => {
+            count = 0;
+            pn.transitions[tranId].inPlaces.forEach(inPlaceId => {
+                if(pn.places[inPlaceId].capacity == 0) count++;
+            });
+            if (count != 0) {
+                pn.transitions[tranId].joint.attr('body/fill', 'green');
+                pn.setFireableEvents(Object.keys(pn.transitions[tranId]));
+            } else
+                pn.transitions[tranId].joint.attr('body/fill', 'black');
         });
-        pn.states[pn.current].joint.attr('body/stroke', 'blue');
-        pn.setFireableEvents(Object.keys(pn.states[pn.current].next));
+
     };
 
     SimPNWidget.prototype._setCurrentState = function(newCurrent) {
@@ -213,4 +266,4 @@
     };
 
     return SimPNWidget;
-});
+}); 

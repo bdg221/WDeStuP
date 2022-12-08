@@ -28,7 +28,12 @@ define([
         
         this._networkRootLoaded = false;
 
+        this._fireableEvents = null;
+
         this._initWidgetEventHandlers();
+
+        // we need to fix the context of this function as it will be called from the widget directly
+        this.setFireableEvents = this.setFireableEvents.bind(this);
 
         this._logger.debug('ctor finished');
     }
@@ -73,7 +78,7 @@ define([
     /* * * * * * * * Node Event Handling * * * * * * * */
     SimPNControl.prototype._eventCallback = function (events) {
         const self = this;
-        console.log(events);
+
         events.forEach(event => {
             if (event.eid && 
                 event.eid === self._currentNodeId ) {
@@ -105,6 +110,7 @@ define([
     /* * * * * * * * Machine manipulation functions * * * * * * * */
     SimPNControl.prototype._initPN = function () {
         const self = this;
+
         //just for the ease of use, lets create a META dictionary
         const rawMETA = self._client.getAllMetaNodes();
         const META = {};
@@ -112,30 +118,45 @@ define([
             META[node.getAttribute('name')] = node.getId(); //we just need the id...
         });
         //now we collect all data we need for network visualization
-        //we need our states (names, position, type), need the set of next state (with event names)
+        //we need our transition (names, position, inPlaces, outPlaces) and places (names, position, inP, outP, capacity)
         const pnNode = self._client.getNode(self._currentNodeId);
         const elementIds = pnNode.getChildrenIds();
-        const pn = {init: null, states:{}};
+        const pn = {transitions:{}, places: {}};
         elementIds.forEach(elementId => {
             const node = self._client.getNode(elementId);
             // the simple way of checking type
             if (node.isTypeOf(META['Transition'])) {
-                //right now we only interested in states...
-                const transition = {name: node.getAttribute('name'), position: node.getRegistry('position'), inPlaces: {}, outPlaces: {}};
+                //right now we only interested in transitions...
+                const transition = {name: node.getAttribute('name'), position: node.getRegistry('position'), inPlaces: [], outPlaces: []};
 
-                // this is in no way optimal, but shows clearly what we are looking for when we collect the data
                 elementIds.forEach(nextId => {
                     const nextNode = self._client.getNode(nextId);
                     if(nextNode.isTypeOf(META['OutplaceArc']) && nextNode.getPointerId('src') === elementId) {
-                        transition.outPlaces.append(nextNode.getPointerId('dst'));
+                        transition.outPlaces.push(nextNode.getPointerId('dst'));
                     }
                     if(nextNode.isTypeOf(META['InplaceArc']) && nextNode.getPointerId('dst') == elementId) {
-                        transition.inPlaces.append(nextNode.getPointerId('src'));
+                        transition.inPlaces.push(nextNode.getPointerId('src'));
                     }
                 });
                 pn.transitions[elementId] = transition;
             }
+            if (node.isTypeOf(META['Place'])){
+                //right now we interested in places...
+                const place = {name: node.getAttribute('name'), position: node.getRegistry('position'), inT: [], outT: [], capacity: node.getAttribute('capacity')};
+                elementIds.forEach(nextId => {
+                    const nextNode = self._client.getNode(nextId);
+                    if(nextNode.isTypeOf(META['OutplaceArc']) && nextNode.getPointerId('dst') === elementId) {
+                        place.outT.push(nextNode.getPointerId('src'));
+                    }
+                    if(nextNode.isTypeOf(META['InplaceArc']) && nextNode.getPointerId('src') == elementId) {
+                        place.inT.push(nextNode.getPointerId('dst'));
+                    }
+                });
+                pn.places[elementId] = place;
+            }
         });
+
+        pn.setFireableEvents = this.setFireableEvents;
 
         self._widget.initPetri(pn);
     };
@@ -146,6 +167,9 @@ define([
         self._widget.destroyPetri();
     };
 
+    SimSMControl.prototype.setFireableEvents = function (events) {
+        this._fireableEvents = events;
+    };
 
     /* * * * * * * * Visualizer life cycle callbacks * * * * * * * */
     SimPNControl.prototype.destroy = function () {
