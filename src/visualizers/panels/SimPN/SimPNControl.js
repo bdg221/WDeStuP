@@ -64,11 +64,11 @@ define([
 
             self._widget.setTitle(desc.name.toUpperCase());
 
-            if (typeof desc.parentId === 'string') {
-                self.$btnModelHierarchyUp.show();
-            } else {
-                self.$btnModelHierarchyUp.hide();
-            }
+            // if (typeof desc.parentId === 'string') {
+            //     self.$btnModelHierarchyUp.show();
+            // } else {
+            //     self.$btnModelHierarchyUp.hide();
+            // }
 
             self._currentNodeParentId = desc.parentId;
 
@@ -218,27 +218,48 @@ define([
 
         this._toolbarItems.push(toolBar.addSeparator());
 
-        /************** Go to hierarchical parent button ****************/
-        this.$btnModelHierarchyUp = toolBar.addButton({
-            title: 'Go to parent',
-            icon: 'glyphicon glyphicon-circle-arrow-up',
-            clickFn: function (/*data*/) {
-                WebGMEGlobal.State.registerActiveObject(self._currentNodeParentId);
+        this.$checkClassification = toolBar.addButton({
+            title: 'Check classifications',
+            icon: 'glyphicon glyphicon-th-list',
+            clickFn: function (){
+                // call the plugin some how
+                const context = self._client.getCurrentPluginContext('PetriNetClassifier', self._currentNodeId, []);
+                context.pluginConfig = {};
+                self._client.runServerPlugin(
+                    'PetriNetClassifier',
+                    context,
+                    function(err, result){
+                        console.log('plugin err:', err);
+                        console.log('plugin result:', result);
+                    }
+                );
             }
         });
-        this._toolbarItems.push(this.$btnModelHierarchyUp);
-        this.$btnModelHierarchyUp.hide();
+
+        this._toolbarItems.push(this.$checkClassification);
+
+        /************** Go to hierarchical parent button ****************/
+        this.$btnResetMachine = toolBar.addButton({
+            title: 'Reset simulator',
+            icon: 'glyphicon glyphicon-repeat',
+            clickFn: function (/*data*/) {
+                self._widget.resetMachine();
+            }
+        });
+        this._toolbarItems.push(this.$btnResetMachine);
 
         /************** Checkbox example *******************/
 
-        this.$cbShowConnection = toolBar.addCheckBox({
-            title: 'toggle checkbox',
-            icon: 'gme icon-gme_diagonal-arrow',
+        this.$btnSingleEvent = toolBar.addButton({
+            title: 'Fire event',
+            icon: 'glyphicon glyphicon-play',
             checkChangedFn: function (data, checked) {
-                self._logger.debug('Checkbox has been clicked!');
+                self._widget.fireEvent(self._fireableEvents[0]);
             }
         });
-        this._toolbarItems.push(this.$cbShowConnection);
+
+        this._toolbarItems.push(this.$btnSingleEvent);
+
 
         this._toolbarInitialized = true;
     };
