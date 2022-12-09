@@ -62,15 +62,14 @@ class PetriNetClassifier(PluginBase):
         
 
         # helper function to check free choice classification
-        # if any transitions share an inplace then they must
-        # have the exact same set of inplaces
+        # if any transitions share an inplace then it is not a free choice
         def free_choice():
             for t in transitions:
                 for t2 in transitions:
                     if t != t2:
                         for p in transitions[t]["inP"]:
                             for p2 in transitions[t2]["inP"]:
-                                if p == p2 and transitions[t]["inP"] != transitions[t2]["inP"]:
+                                if p == p2:
                                     return False
             return True
 
