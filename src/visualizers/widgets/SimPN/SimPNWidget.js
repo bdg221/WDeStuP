@@ -44,7 +44,10 @@
         // add event calls to elements
         this._jointPaper.on('element:pointerdblclick', function(elementView) {
             const currentElement = elementView.model;
-            // console.log(currentElement);
+            console.log("calling attemptFire");
+            console.log(currentElement.id);
+            self.attemptFire(currentElement.id);
+            console.log("back from attemptFire");
             if (self._webgmePN) {
                 // console.log(self._webgmePN.id2state[currentElement.id]);
                 self._setCurrentState(self._webgmePN.id2transitions[currentElement.id]);
@@ -113,12 +116,18 @@
         Object.keys(pn.places).forEach(placeId => {
             let place = null;
             let count = pn.places[placeId].capacity;
+
+            let text = self.getPlaceText(pn.places[placeId]);
+
+            	
+
+
             place = new joint.shapes.standard.Circle({
                 position: pn.places[placeId].position,
                 size: { width: 100, height: 100 },
                 attrs: {
                     label : {
-                        text: pn.places[placeId].name,
+                        text: text,
                         //event: 'element:label:pointerdown',
                         fontWeight: 'bold',
                         //cursor: 'text',
@@ -207,6 +216,11 @@
         //now refresh the visualization
         self._jointPaper.updateViews();
         self._decoratePetri();
+
+        if(this.getEnabledTrans().length == 0){
+            alert("Deadlock reached. There are no enabled transitions. Please create a better the Petri Net.");
+        }
+
     };
 
     SimPNWidget.prototype.destroyPetri = function () {
@@ -239,7 +253,7 @@
             pn.transitions[tranId].inPlaces.forEach(inPlaceId => {
                 if(pn.places[inPlaceId].capacity == 0) count++;
             });
-            if (count == 0) {
+            if (count == 0 && pn.transitions[tranId].inPlaces.size != 0) {
                 pn.transitions[tranId].joint.attr('body/fill', 'green');
                 pn.transitions[tranId].joint.attr('body/cursor', 'pointer');
                 pn.transitions[tranId].joint.attr('label/cursor', 'pointer');
@@ -257,9 +271,78 @@
         this._webgmePN.current = newCurrent;
         this._decoratePetri();
     };
+
+    SimPNWidget.prototype.getEnabledTrans = function() {
+        const pn = this._webgmePN;
+        let enabledTrans = [];
+        let count = 0;
+        Object.keys(pn.transitions).forEach(tranId => {
+            count = 0;
+            pn.transitions[tranId].inPlaces.forEach(inPlaceId => {
+                if(pn.places[inPlaceId].capacity == 0) count++;
+            });
+            if (count == 0 && pn.transitions[tranId].inPlaces.size != 0) enabledTrans.push(tranId);
+        });
+        return enabledTrans;
+    }
+
+    SimPNWidget.prototype.getPlaceText = function(place) {
+        let text = place.name+"\n";
+        let count = place.capacity;
+
+        for(let i=0; i<count; i++){
+            if (i == 2 || i == 5 || i== 8)
+                text += "\u25cf \n";
+            else
+                text += "\u25cf ";
+        }
+        return text;
+    }
     
 
     /* * * * * * * * Visualizer event handlers * * * * * * * */
+    SimPNWidget.prototype.attemptFire = function (nodeId) {
+        const pn = this._webgmePN;
+        let tran = pn.id2transitions[nodeId];
+        console.log("in attemptFire for "+nodeId+ " - "+tran);
+        let enabledTrans = this.getEnabledTrans();
+        console.log(enabledTrans)
+        if (enabledTrans.includes(tran)){
+            console.log("firing for node "+tran);
+            this.fireTransition(tran);
+        }
+    };
+
+    SimPNWidget.prototype.fireTransition = function (tranId){
+        const self = this;
+        const pn = this._webgmePN;
+        let text = "";
+        console.log("in fireTransition "+ tranId);
+        // take 1 away from capacity of each inPlace and redraw
+        pn.transitions[tranId].inPlaces.forEach(inPlaceId => {
+            pn.places[inPlaceId].capacity = pn.places[inPlaceId].capacity-1;
+            
+            text = self.getPlaceText(pn.places[inPlaceId]);
+console.log("new text should be "+text);
+console.log("new capacity: "+pn.places[inPlaceId].capacity);
+            pn.places[inPlaceId].joint.attr('label/text', text);
+            pn.transitions[tranId].joint.attr('body/fill', 'black');
+            self._jointPaper.updateViews();
+
+        });
+
+        // add 1 away capacity of each outPlace and redraw
+        pn.transitions[tranId].inPlaces.forEach(outPlaceId => {
+            pn.places[outPlaceId].capacity++;
+            text = self.getPlaceText(pn.places[outPlaceId]);
+            pn.places[outPlaceId].joint.attr('label/text', text);
+        });
+        
+        self._decoratePetri();
+        if(this.getEnabledTrans().length == 0){
+            alert("Deadlock reached. There are no enabled transitions. Please restart the Petri Net.");
+        }
+    };
 
     /* * * * * * * * Visualizer life cycle callbacks * * * * * * * */
     SimPNWidget.prototype.destroy = function () {
