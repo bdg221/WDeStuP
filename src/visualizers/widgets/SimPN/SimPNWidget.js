@@ -66,7 +66,7 @@
     // Petri Net manipulating functions called from the controller
     SimPNWidget.prototype.initPetri = function (petriDescriptor) {
         const self = this;
-        console.log(petriDescriptor);
+        //console.log(petriDescriptor);
         
         self._ogPN = _.cloneDeep(petriDescriptor);
         self._webgmePN = petriDescriptor;
