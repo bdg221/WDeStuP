@@ -49,12 +49,8 @@
         // add event calls to elements
         this._jointPaper.on('element:pointerdblclick', function(elementView) {
             const currentElement = elementView.model;
-            console.log("calling attemptFire");
-            console.log(currentElement.id);
             self.attemptFire(currentElement.id);
-            console.log("back from attemptFire");
             if (self._webgmePN) {
-                // console.log(self._webgmePN.id2state[currentElement.id]);
                self._setCurrentState(self._webgmePN.id2transitions[currentElement.id]);
             }
         });
@@ -86,13 +82,19 @@
             let count = 0;
             let color = 'green';
             let cursor = 'default';
-            pn.transitions[transitionId].inPlaces.forEach(inPlaceId => {
-                if(pn.places[inPlaceId].capacity == 0)
+            let inPlaceId = "";
+            for(let i=0; i< pn.transitions[transitionId].inPlaces.length; i++){
+                inPlaceId = pn.transitions[transitionId].inPlaces[i];
+                if(pn.places[inPlaceId].capacity == 0){
                     color = 'black';
                     cursor = 'pointer';
+                }
                 count++;
-            });
-            if(count == 0) color = 'black';
+            }
+            if(pn.transitions[transitionId].inPlaces.length == 0) {
+                color = 'black';
+                cursor = 'pointer';
+            }
             tran = new joint.shapes.standard.Rectangle({
                 position: pn.transitions[transitionId].position,
                 size: { width: 30, height: 120 },
@@ -249,9 +251,6 @@
 
     SimPNWidget.prototype.resetPetri = function () {
         const og = this._ogPN;
-        console.log("inside reset");
-        console.log(this._webgmePN);
-        console.log(this._ogPN);
         this._initialize();
         this.initPetri(og);
     };
@@ -264,7 +263,7 @@
             pn.transitions[tranId].inPlaces.forEach(inPlaceId => {
                 if(pn.places[inPlaceId].capacity == 0) count++;
             });
-            if (count == 0 && pn.transitions[tranId].inPlaces.size != 0) {
+            if (count == 0 && pn.transitions[tranId].inPlaces.length != 0) {
                 pn.transitions[tranId].joint.attr('body/fill', 'green');
                 pn.transitions[tranId].joint.attr('body/cursor', 'pointer');
                 pn.transitions[tranId].joint.attr('label/cursor', 'pointer');
@@ -286,14 +285,21 @@
     SimPNWidget.prototype.getEnabledTrans = function() {
         const pn = this._webgmePN;
         let enabledTrans = [];
+        let tranId = "";
         let count = 0;
-        Object.keys(pn.transitions).forEach(tranId => {
+        let i = 0;
+        let j = 0;
+        let inPlaceId = "";
+        let keys = Object.keys(pn.transitions);
+        for(j=0; j<keys.length; j++){
+            tranId = keys[j];
             count = 0;
-            pn.transitions[tranId].inPlaces.forEach(inPlaceId => {
+            for (i=0; i < pn.transitions[tranId].inPlaces.length; i++){
+                inPlaceId = pn.transitions[tranId].inPlaces[i];
                 if(pn.places[inPlaceId].capacity == 0) count++;
-            });
-            if (count == 0 && pn.transitions[tranId].inPlaces.size != 0) enabledTrans.push(tranId);
-        });
+            }
+            if (count == 0 && pn.transitions[tranId].inPlaces.length != 0) enabledTrans.push(tranId);
+        }
         return enabledTrans;
     }
 
@@ -320,11 +326,8 @@
     SimPNWidget.prototype.attemptFire = function (nodeId) {
         const pn = this._webgmePN;
         let tran = pn.id2transitions[nodeId];
-        console.log("in attemptFire for "+nodeId+ " - "+tran);
         let enabledTrans = this.getEnabledTrans();
-        console.log(enabledTrans)
         if (enabledTrans.includes(tran)){
-            console.log("firing for node "+tran);
             this.fireTransition(tran);
         }
     };
@@ -347,7 +350,6 @@
             pn.places[inPlaceId].joint.attr('label/text', text);
             
         }
-        //pn.places['/S/C'].capacity = 10;
 
         // add 1 away capacity of each outPlace and redraw
         let outPlaceLength = pn.transitions[tranId].outPlaces.length;
