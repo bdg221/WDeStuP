@@ -40,35 +40,26 @@ All of the following commands should be used from your main project directory (w
 
 ## How to start modeling a Petri Net
 After going to http://localhost:8888, you will need to create a new project. In the pop up window, choose the "Create new..." button:
-![Create new...](img/createNew.jpg)
 
 Next, type in the name of the project and click the Create button:
-![Type the name of the project](img/nameProject.jpg)
 
 After clicking Create, you are shown a dropdown to choose an existing seed. Select petriNet from the options:
-![Choose the existing petriNet seed](img/chooseSeed.jpg)
 
 You will now be presented with the ROOT object in the Composition visualizer:
-![ROOT object in the Composition Visualizer](img/rootObject.jpg)
 
 To start a new Petri Net, simple drag the PetriNet from the left side and drop it onto the ROOT window:
-![Drag PetriNet](img/dragPetriNet.png)
 
 At this point, you can click on the PetriNet and change the name attribute:
-![Change name of PetriNet](img/namePetriNet.jpg)
 
 Now, you can double click on the "My Petri Net" to change the Composition visualizer to of that object:
-![Double click your Petri Net](img/doubleClick.jpg)
 
 At this point, you can drag the Place objects and Transition objects onto the panel and you can change their name attributes:
-![Drag Place and Transition objects](img/objects.jpg)
 
 You can connect Place and Transition objects with Arcs by clicking on a Place and dragging to a Transition or by clicking
 on a Transition and dragging to a Place:
-![Create Arcs](img/arcs.png)
 
 Finally, to add tokens to a Place, click on the Place and adjust the capacity attribute. Please note that you may have to hit Enter in the attribute field to save the changes.
-![Add Tokens](img/tokens.jpg)
+![Create Project](img/createProject.gif)
 
 
 ## How to use the visualizer to simulate and classify a Petri Net
@@ -87,7 +78,7 @@ The SimPN visualizer, can check the Petri Net to see if it can be appropriately 
 For details on the different classifications, please see the end of the README.
 
 In the simulator, you can select the "Check Classifications" button from the toolbar to receive a notification listing the valid classifications:
-![Classifications](img/classifications.jpg)
+![Classifications](img/classification.gif)
 
 ### Simulating the Petri Net
 To simulate the Petri Net, "enabled" transitions appear in green. By double clicking the enabled transition, a marker from each inplace is removed and a marker is passed to each outplace.
