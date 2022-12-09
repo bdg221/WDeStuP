@@ -6,10 +6,14 @@
  * Copied from StateMachineJoint
  */
 
+
+
  define(['jointjs', 'css!./styles/SimPNWidget.css'], function (joint) {
     'use strict';
 
     var WIDGET_CLASS = 'sim-s-m';
+
+    const _ = require("lodash");
 
     function SimPNWidget(logger, container) {
         
@@ -21,10 +25,11 @@
         this._initialize();
 
         this._logger.debug('ctor finished');
+
+        
     }
 
     SimPNWidget.prototype._initialize = function () {
-        console.log(joint);
         var width = this._el.width(),
             height = this._el.height(),
             self = this;
@@ -50,11 +55,12 @@
             console.log("back from attemptFire");
             if (self._webgmePN) {
                 // console.log(self._webgmePN.id2state[currentElement.id]);
-                self._setCurrentState(self._webgmePN.id2transitions[currentElement.id]);
+               self._setCurrentState(self._webgmePN.id2transitions[currentElement.id]);
             }
         });
 
         this._webgmePN = null;
+        this._ogPN = null;
     };
 
     SimPNWidget.prototype.onWidgetContainerResize = function (width, height) {
@@ -65,9 +71,10 @@
     SimPNWidget.prototype.initPetri = function (petriDescriptor) {
         const self = this;
         console.log(petriDescriptor);
-
+        
+        self._ogPN = _.cloneDeep(petriDescriptor);
         self._webgmePN = petriDescriptor;
-        self._webgmePN.current = self._webgmePN.init;
+        //self._webgmePN.current = self._webgmePN.init;
         self._jointPN.clear();
         const pn = self._webgmePN;
         pn.id2transitions = {}; // this dictionary will connect the on-screen id to the transition id
@@ -227,22 +234,26 @@
 
     };
 
-    SimPNWidget.prototype.fireEvent = function (event) {
-        const self = this;
-        const current = self._webgmePN.states[self._webgmePN.current];
-        const link = current.jointNext[event];
-        const linkView = link.findView(self._jointPaper);
-        linkView.sendToken(joint.V('circle', { r: 10, fill: 'black' }), {duration:500}, function() {
-           self._webgmePN.current = current.next[event];
-           self._decoratePetri();
-        });
+    // SimPNWidget.prototype.fireEvent = function (event) {
+    //     const self = this;
+    //     const current = self._webgmePN.states[self._webgmePN.current];
+    //     const link = current.jointNext[event];
+    //     const linkView = link.findView(self._jointPaper);
+    //     linkView.sendToken(joint.V('circle', { r: 10, fill: 'black' }), {duration:500}, function() {
+    //        self._webgmePN.current = current.next[event];
+    //        self._decoratePetri();
+    //     });
 
 
-    };
+    // };
 
     SimPNWidget.prototype.resetPetri = function () {
-        this._webgmePN.current = this._webgmePN.init;
-        this._decoratePetri();
+        const og = this._ogPN;
+        console.log("inside reset");
+        console.log(this._webgmePN);
+        console.log(this._ogPN);
+        this._initialize();
+        this.initPetri(og);
     };
 
     SimPNWidget.prototype._decoratePetri = function() {
@@ -290,6 +301,11 @@
         let text = place.name+"\n";
         let count = place.capacity;
 
+        if (count > 12){
+            text += "\n"+ count;
+            return text;
+        }
+
         for(let i=0; i<count; i++){
             if (i == 2 || i == 5 || i== 8)
                 text += "\u25cf \n";
@@ -315,28 +331,32 @@
 
     SimPNWidget.prototype.fireTransition = function (tranId){
         const self = this;
-        const pn = this._webgmePN;
+        let pn = this._webgmePN;
         let text = "";
-        console.log("in fireTransition "+ tranId);
+        let inPlaceId = "";
+        let outPlaceId = "";
+        
         // take 1 away from capacity of each inPlace and redraw
-        pn.transitions[tranId].inPlaces.forEach(inPlaceId => {
+        
+        let inPlaceLength = pn.transitions[tranId].inPlaces.length;
+        for(let i=0; i<inPlaceLength; i++){
+            inPlaceId = pn.transitions[tranId].inPlaces[i];
             pn.places[inPlaceId].capacity = pn.places[inPlaceId].capacity-1;
             
             text = self.getPlaceText(pn.places[inPlaceId]);
-console.log("new text should be "+text);
-console.log("new capacity: "+pn.places[inPlaceId].capacity);
             pn.places[inPlaceId].joint.attr('label/text', text);
-            pn.transitions[tranId].joint.attr('body/fill', 'black');
-            self._jointPaper.updateViews();
-
-        });
+            
+        }
+        //pn.places['/S/C'].capacity = 10;
 
         // add 1 away capacity of each outPlace and redraw
-        pn.transitions[tranId].inPlaces.forEach(outPlaceId => {
+        let outPlaceLength = pn.transitions[tranId].outPlaces.length;
+        for(let i=0; i<outPlaceLength; i++){
+            outPlaceId = pn.transitions[tranId].outPlaces[i];
             pn.places[outPlaceId].capacity++;
             text = self.getPlaceText(pn.places[outPlaceId]);
             pn.places[outPlaceId].joint.attr('label/text', text);
-        });
+        }
         
         self._decoratePetri();
         if(this.getEnabledTrans().length == 0){
